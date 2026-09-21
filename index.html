@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jardín de Lirios Amarillos Interactivo</title>
+    <!-- Tailwind CSS para el layout y controles -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para íconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Playfair+Display:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            transition: background 1.5s ease;
+        }
+
+        /* Themes */
+        .theme-day {
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 60%, #90EE90 100%);
+        }
+
+        .theme-sunset {
+            background: linear-gradient(to bottom, #2c1654 0%, #f76b1c 60%, #4a7c59 100%);
+        }
+
+        .theme-night {
+            background: linear-gradient(to bottom, #090a0f 0%, #111e38 70%, #1a3323 100%);
+        }
+
+        /* Canvas background overlay for particles */
+        #particleCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        /* Glassmorphism Controls Panel */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.18);
+        }
+
+        .dark-glass {
+            background: rgba(18, 18, 18, 0.45);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #f1f5f9;
+        }
+
+        /* Garden Container */
+        .garden-container {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 1000px;
+            height: 85vh;
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            z-index: 10;
+        }
+
+        /* Lily Base & Sway Animation */
+        .lily-wrapper {
+            position: relative;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            cursor: pointer;
+            transform-origin: bottom center;
+            transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* Custom Wind Swaying Effect */
+        @keyframes swaySoft {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(2.5deg); }
+        }
+
+        @keyframes swayStrong {
+            0%, 100% { transform: rotate(-1deg); }
+            50% { transform: rotate(6deg); }
+        }
+
+        .sway-light {
+            animation: swaySoft 5s ease-in-out infinite;
+        }
+
+        .sway-wind {
+            animation: swayStrong 2.5s ease-in-out infinite;
+        }
+
+        /* Stem Styling */
+        .stem-container {
+            position: relative;
+            width: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stem {
+            width: 10px;
+            background: linear-gradient(to right, #2d6a4f, #52b788, #1b4332);
+            border-radius: 5px;
+            box-shadow: inset 1px 0 2px rgba(255,255,255,0.4), 2px 2px 5px rgba(0,0,0,0.2);
+            transition: height 1s ease;
+        }
+
+        /* Leaf Styling */
+        .leaf {
+            position: absolute;
+            background: linear-gradient(135deg, #40916c, #1b4332);
+            border-radius: 0% 100% 10% 100% / 0% 100% 10% 100%;
+            box-shadow: 2px 2px 6px rgba(0,0,0,0.2);
+            transform-origin: bottom left;
+            transition: transform 0.5s ease;
+        }
+
+        .leaf-left {
+            left: -45px;
+            width: 50px;
+            height: 22px;
+            transform: rotate(-35deg) scaleX(-1);
+            border-radius: 100% 0% 100% 10% / 100% 0% 100% 10%;
+        }
+
+        .leaf-right {
+            right: -45px;
+            width: 55px;
+            height: 24px;
+            transform: rotate(30deg);
+        }
+
+        /* Flower Head Container */
+        .flower-head {
+            position: relative;
+            width: 220px;
+            height: 220px;
+            margin-bottom: -20px;
+            z-index: 5;
+            transition: transform 1s ease, filter 0.5s ease;
+        }
+
+        /* Bloom/Close Animations */
+        .bloom-scale {
+            transform: scale(1) rotate(0deg);
+            opacity: 1;
+        }
+
+        .closed-scale {
+            transform: scale(0.35) rotate(-10deg) translateY(60px);
+        }
+
+        /* SVG Petal Effects */
+        .petal {
+            transition: transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1), fill 0.5s ease;
+            transform-origin: 100px 150px;
+            filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.15));
+        }
+
+        .lily-glow {
+            filter: drop-shadow(0 0 15px rgba(255, 230, 109, 0.8)) drop-shadow(0 0 30px rgba(255, 215, 0, 0.5)) !important;
+        }
+
+        /* Pulsing Glow Effect on Hover */
+        .lily-wrapper:hover .flower-head {
+            filter: drop-shadow(0 0 20px rgba(255, 223, 0, 0.7));
+        }
+
+        /* Custom SVG Shading Gradients defined in HTML */
+
+        /* Ground/Grass Styling */
+        .ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 90px;
+            background: linear-gradient(to top, #132a13, #31572c 60%, transparent);
+            z-index: 1;
+        }
+
+        .grass-blade {
+            position: absolute;
+            bottom: 0;
+            width: 6px;
+            height: 40px;
+            background: #40916c;
+            border-radius: 100% 0 0 0;
+            transform-origin: bottom center;
+        }
+
+        /* Soft Ripple effect on click */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.6);
+            transform: scale(0);
+            animation: ripple-anim 0.8s linear;
+            pointer-events: none;
+        }
+
+        @keyframes ripple-anim {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body class="theme-day transition-colors duration-1000 select-none overflow-hidden">
+
+    <!-- Header Controls & Title -->
+    <header class="absolute top-4 left-0 right-0 z-30 flex flex-col md:flex-row items-center justify-between px-6 py-2 max-w-6xl mx-auto">
+        <!-- Encabezado Centrado -->
+<div class="text-center mb-6 max-w-2xl mx-auto px-4">
+    <!-- Título Principal (Amarillo Dorado Cálido con Sombra Contrastante) -->
+    <h1 class="text-3xl md:text-5xl font-bold tracking-wide text-amber-400 drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)] mb-3" style="font-family: 'Great Vibes', 'Playfair Display', cursive, serif;">
+        <span class="mr-2">🌸</span> No eres espectadora, mi florecita <span class="ml-2">🌸</span>
+    </h1>
+    
+    <!-- Mensaje Dedicatoria (Amarillo Crema Brillante sobre Fondo Azul) -->
+    <p class="text-lg md:text-xl font-medium text-yellow-200 italic drop-shadow-[0_1px_5px_rgba(0,0,0,0.7)] leading-relaxed" style="font-family: 'Playfair Display', serif;">
+        Sé que las cosas han sido un poco difíciles, pero tengo fe en que todo saldrá bien. Te quiero mucho.
+    </p>
+</div>
+    </header>
+
+    <!-- Canvas for Floating Particles & Falling Petals -->
+    <canvas id="particleCanvas"></canvas>
+
+    <!-- Interactive Garden Area -->
+    <main class="garden-container" id="garden">
+        
+        <!-- SVG Definitions for Petal Gradients & Filters -->
+        <svg width="0" height="0" class="absolute">
+            <defs>
+                <!-- Outer Petal Gradient (Soft Golden Yellow) -->
+                <linearGradient id="petalGradOuter" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#FFF9A6" />
+                    <stop offset="50%" stop-color="#FFDE40" />
+                    <stop offset="100%" stop-color="#E6A100" />
+                </linearGradient>
+
+                <!-- Inner Petal Gradient (Vibrant Yellow with Soft Pink/Orange Core Tint) -->
+                <linearGradient id="petalGradInner" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#FFFFC2" />
+                    <stop offset="60%" stop-color="#FFD000" />
+                    <stop offset="90%" stop-color="#FF9100" />
+                    <stop offset="100%" stop-color="#D85A00" />
+                </linearGradient>
+
+                <!-- Center Pistil Gradient -->
+                <linearGradient id="pistilGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#A3E635" />
+                    <stop offset="100%" stop-color="#4D7C0F" />
+                </linearGradient>
+
+                <!-- Anther/Pollen Gradient -->
+                <linearGradient id="antherGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#B45309" />
+                    <stop offset="100%" stop-color="#78350F" />
+                </linearGradient>
+            </defs>
+        <!-- LILY 2 (Center - Tallest & Grandest Profile View) -->
+        <div class="lily-wrapper sway-light" id="lily2" style="animation-delay: -1.5s;" onclick="interactLily(1, event)">
+            <!-- Flower Head SVG -->
+            <div class="flower-head bloom-scale" id="head1">
+                <svg viewBox="0 0 200 220" class="w-full h-full filter drop-shadow-md">
+                    <!-- Outer Petals Layer (Profile side curves extending outwards) -->
+                    <g class="outer-petals">
+                        <!-- Left Wide Curving Side Petal (Profile Wing) -->
+                        <path class="petal" d="M100,165 C60,160 10,140 0,110 C20,95 65,120 100,165 Z" fill="url(#petalGradOuter)"/>
+                        <!-- Right Wide Curving Side Petal (Profile Wing) -->
+                        <path class="petal" d="M100,165 C140,160 190,140 200,110 C180,95 135,120 100,165 Z" fill="url(#petalGradOuter)"/>
+                        <!-- Lower Center Front Petal -->
+                    </g>
+					
+					<!-- Pistils and Stamens (Organized for side cup profile) -->
+                    <g class="stamens">
+                        <!-- Filaments curving upward out of the profile cup -->
+                        <path d="M100,155 Q80,120 68,90" stroke="url(#pistilGrad)" stroke-width="3" fill="none" stroke-linecap="round"/>
+                        <path d="M100,155 Q90,110 84,75" stroke="url(#pistilGrad)" stroke-width="3" fill="none" stroke-linecap="round"/>
+                        <path d="M100,155 Q100,105 100,70" stroke="url(#pistilGrad)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+                        <path d="M100,155 Q110,110 116,75" stroke="url(#pistilGrad)" stroke-width="3" fill="none" stroke-linecap="round"/>
+                        <path d="M100,155 Q120,120 132,90" stroke="url(#pistilGrad)" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+                        <!-- Anthers (Pollen Heads) -->
+                        <ellipse cx="66" cy="88" rx="7" ry="3" fill="url(#antherGrad)" transform="rotate(-25 66 88)"/>
+                        <ellipse cx="83" cy="73" rx="7" ry="3" fill="url(#antherGrad)" transform="rotate(-12 83 73)"/>
+                        <!-- Main Stigma in Center -->
+                        <circle cx="100" cy="67" r="5" fill="#84cc16"/>
+                        <ellipse cx="117" cy="73" rx="7" ry="3" fill="url(#antherGrad)" transform="rotate(12 117 73)"/>
+                        <ellipse cx="134" cy="88" rx="7" ry="3" fill="url(#antherGrad)" transform="rotate(25 134 88)"/>
+
+                        <!-- Center Dots on Profile Base -->
+                        <circle cx="94" cy="140" r="1.5" fill="#78350F" opacity="0.7"/>
+                        <circle cx="100" cy="145" r="1.2" fill="#78350F" opacity="0.8"/>
+                        <circle cx="106" cy="138" r="1.5" fill="#78350F" opacity="0.7"/>
+                    </g>
+
+                    <!-- Inner Petals Layer (Side profile cup shape) -->
+                    <g class="inner-petals">
+                        <!-- Left Main Petal -->
+                        <path class="petal" d="M100,165 C55,145 20,105 15,85 C45,85 78,125 100,165 Z" fill="url(#petalGradInner)"/>
+                        <!-- Right Main Petal -->
+                        <path class="petal" d="M100,165 C145,145 180,105 185,85 C155,85 122,125 100,165 Z" fill="url(#petalGradInner)"/>
+                        <!-- Center Cup Petal (Resting in front) -->
+                        <path class="petal" d="M100,165 C80,140 75,110 100,105 C125,110 120,140 100,165 Z" fill="url(#petalGradInner)"/>
+                    </g>
+
+                    
+                </svg>
+            </div>
+
+            <!-- Stem & Leaves -->
+            <div class="stem-container" style="margin-top: -35px;">
+                <div class="stem" style="height: 280px;"></div>
+                <div class="leaf leaf-left" style="bottom: 140px; left: 0px; "></div>
+                <div class="leaf leaf-right" style="bottom: 80px; left: 0px;"></div>
+            </div>
+        </div>
+
+        <!-- LILY 2 (Center - Tallest & Grandest Profile View) -->
+        <div class="lily-wrapper sway-light" id="lily2" style="animation-delay: -1.5s;" onclick="interactLily(2, event)">
+            <!-- Flower Head SVG -->
+            <div class="flower-head bloom-scale" id="head2" style="transform: scale(1.15);">
+                <svg viewBox="0 0 200 220" class="w-full h-full filter drop-shadow-lg">
+                    <!-- Outer Petals Layer (Extended Lateral Profile Wings) -->
+                    <g class="outer-petals">
+                        <!-- Left Wide Side Petal -->
+                        <path class="petal" d="M100,165 C55,160 5,138 -5,108 C18,92 62,118 100,165 Z" fill="url(#petalGradOuter)"/>
+                        <!-- Right Wide Side Petal -->
+                        <path class="petal" d="M100,165 C145,160 195,138 205,108 C182,92 138,118 100,165 Z" fill="url(#petalGradOuter)"/>
+                        <!-- Lower Center Front Petal -->
+                    </g>
+					
+					<!-- Stamens -->
+                    <g class="stamens">
+                        <path d="M100,155 Q78,115 64,82" stroke="url(#pistilGrad)" stroke-width="3" fill="none"/>
+                        <path d="M100,155 Q88,105 82,68" stroke="url(#pistilGrad)" stroke-width="3" fill="none"/>
+                        <path d="M100,155 Q100,100 100,60" stroke="url(#pistilGrad)" stroke-width="3.5" fill="none"/>
+                        <path d="M100,155 Q112,105 118,68" stroke="url(#pistilGrad)" stroke-width="3" fill="none"/>
+                        <path d="M100,155 Q122,115 136,82" stroke="url(#pistilGrad)" stroke-width="3" fill="none"/>
+
+                        <ellipse cx="62" cy="80" rx="7.5" ry="3.5" fill="url(#antherGrad)" transform="rotate(-28 62 80)"/>
+                        <ellipse cx="81" cy="66" rx="7.5" ry="3.5" fill="url(#antherGrad)" transform="rotate(-15 81 66)"/>
+                        <circle cx="100" cy="57" r="5.5" fill="#84cc16"/>
+                        <ellipse cx="119" cy="66" rx="7.5" ry="3.5" fill="url(#antherGrad)" transform="rotate(15 119 66)"/>
+                        <ellipse cx="138" cy="80" rx="7.5" ry="3.5" fill="url(#antherGrad)" transform="rotate(28 138 80)"/>
+
+                        <circle cx="93" cy="138" r="1.5" fill="#78350F" opacity="0.8"/>
+                        <circle cx="100" cy="144" r="1.5" fill="#78350F" opacity="0.9"/>
+                        <circle cx="107" cy="136" r="1.5" fill="#78350F" opacity="0.8"/>
+                    </g>
+
+                    <!-- Inner Petals Layer -->
+                    <g class="inner-petals">
+                        <!-- Left Inner Petal -->
+                        <path class="petal" d="M100,165 C50,142 15,100 10,80 C42,80 75,122 100,165 Z" fill="url(#petalGradInner)"/>
+                        <!-- Right Inner Petal -->
+                        <path class="petal" d="M100,165 C150,142 185,100 190,80 C158,80 125,122 100,165 Z" fill="url(#petalGradInner)"/>
+                        <!-- Center Front Cup Petal -->
+                        <path class="petal" d="M100,165 C78,138 72,105 100,100 C128,105 122,138 100,165 Z-10" fill="url(#petalGradInner)"/>
+                    </g>
+
+                    
+                </svg>
+            </div>
+
+            <!-- Stem & Leaves -->
+            <div class="stem-container" style="margin-top: -35px;">
+                <div class="stem" style="height: 340px;"></div>
+                <div class="leaf leaf-left" style="bottom: 180px; left: 0px; width: 65px; height: 26px;"></div>
+                <div class="leaf leaf-right" style="bottom: 100px; left: 0px; width: 80px; height: 28px;"></div>
+                <div class="leaf leaf-left" style="bottom: 40px; left: 0px; width: 50px; height: 20px;"></div>
+            </div>
+        </div>
+
+        <!-- LILY 2 (Center - Tallest & Grandest Profile View) -->
+        <div class="lily-wrapper sway-light" id="lily2" style="animation-delay: -1.5s;" onclick="interactLily(3, event)">
+            <!-- Flower Head SVG -->
+            <div class="flower-head bloom-scale" id="head3" style="transform: scale(0.95);">
+                <svg viewBox="0 0 200 220" class="w-full h-full filter drop-shadow-md">
+                    <!-- Outer Petals Layer (Profile side curves extending outwards) -->
+                    <g class="outer-petals">
+                        <path class="petal" d="M100,165 C60,160 10,140 0,110 C20,95 65,120 100,165 Z" fill="url(#petalGradOuter)"/>
+                        <path class="petal" d="M100,165 C140,160 190,140 200,110 C180,95 135,120 100,165 Z" fill="url(#petalGradOuter)"/>
+                    </g>
+					
+					<!-- Stamens -->
+                    <g class="stamens">
+                        <path d="M100,155 Q80,120 68,90" stroke="url(#pistilGrad)" stroke-width="3" fill="none"/>
+                        <path d="M100,155 Q90,110 84,75" stroke="url(#pistilGrad)" stroke-width="3" fill="none"/>
+                        <path d="M100,155 Q100,105 100,70" stroke="url(#pistilGrad)" stroke-width="3.5" fill="none"/>
+                        <path d="M100,155 Q110,110 116,75" stroke="url(#pistilGrad)" stroke-width="3" fill="none"/>
+                        <path d="M100,155 Q120,120 132,90" stroke="url(#pistilGrad)" stroke-width="3" fill="none"/>
+
+                        <ellipse cx="66" cy="88" rx="7" ry="3" fill="url(#antherGrad)" transform="rotate(-25 66 88)"/>
+                        <ellipse cx="83" cy="73" rx="7" ry="3" fill="url(#antherGrad)" transform="rotate(-12 83 73)"/>
+                        <circle cx="100" cy="67" r="5" fill="#84cc16"/>
+                        <ellipse cx="117" cy="73" rx="7" ry="3" fill="url(#antherGrad)" transform="rotate(12 117 73)"/>
+                        <ellipse cx="134" cy="88" rx="7" ry="3" fill="url(#antherGrad)" transform="rotate(25 134 88)"/>
+
+                        <circle cx="94" cy="140" r="1.5" fill="#78350F" opacity="0.7"/>
+                        <circle cx="100" cy="145" r="1.2" fill="#78350F" opacity="0.8"/>
+                        <circle cx="106" cy="138" r="1.5" fill="#78350F" opacity="0.7"/>
+                    </g>
+
+                    <!-- Inner Petals Layer -->
+                    <g class="inner-petals">
+                        <path class="petal" d="M100,165 C55,145 20,105 15,85 C45,85 78,125 100,165 Z" fill="url(#petalGradInner)"/>
+                        <path class="petal" d="M100,165 C145,145 180,105 185,85 C155,85 122,125 100,165 Z" fill="url(#petalGradInner)"/>
+                        <path class="petal" d="M100,165 C80,140 75,110 100,105 C125,110 120,140 100,165 Z" fill="url(#petalGradInner)"/>
+                    </g>
+
+                    
+                </svg>
+            </div>
+
+            <!-- Stem & Leaves -->
+            <div class="stem-container" style="margin-top: -35px;">
+                <div class="stem" style="height: 250px;"></div>
+                <div class="leaf leaf-right" style="bottom: 120px; left: 0px;"></div>
+                <div class="leaf leaf-left" style="bottom: 60px; left: 0px;" ></div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Natural Ground Base with Decorative Grass -->
+    <div class="ground" id="groundContainer"></div>
+
+    <script>
+        // Global State Variables
+        let currentTheme = 'day';
+        let isBloomed = true;
+        let windLevel = 1; // 0: off, 1: normal, 2: strong
+        let isGlowing = false;
+
+        // Particle System Canvas
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let petals = [];
+
+        // Resize Canvas dynamically
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Generate Decorative Grass
+        function generateGrass() {
+            const ground = document.getElementById('groundContainer');
+            ground.innerHTML = '';
+            const count = Math.floor(window.innerWidth / 12);
+            for (let i = 0; i < count; i++) {
+                const blade = document.createElement('div');
+                blade.className = 'grass-blade';
+                blade.style.left = `${(i / count) * 100}%`;
+                blade.style.height = `${25 + Math.random() * 35}px`;
+                blade.style.transform = `rotate(${Math.random() * 20 - 10}deg)`;
+                blade.style.opacity = (0.6 + Math.random() * 0.4).toString();
+                ground.appendChild(blade);
+            }
+        }
+        generateGrass();
+
+        // --- Particle & Petal Classes ---
+        class AmbientParticle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 3 + 1;
+                this.speedX = (Math.random() - 0.5) * 0.8;
+                this.speedY = -Math.random() * 0.8 - 0.2;
+                this.alpha = Math.random() * 0.7 + 0.3;
+                this.pulseSpeed = Math.random() * 0.02 + 0.005;
+            }
+
+            update() {
+                this.x += this.speedX + (windLevel === 2 ? 1.5 : windLevel === 1 ? 0.3 : 0);
+                this.y += this.speedY;
+
+                // Firefly / Sparkle pulsing opacity
+                this.alpha += Math.sin(Date.now() * this.pulseSpeed) * 0.01;
+
+                if (this.y < -10 || this.x > canvas.width + 10) {
+                    this.reset();
+                    this.y = canvas.height + 10;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                
+                if (currentTheme === 'night') {
+                    // Golden Fireflies
+                    ctx.fillStyle = `rgba(255, 230, 100, ${Math.max(0, this.alpha)})`;
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#facc15';
+                } else if (currentTheme === 'sunset') {
+                    // Warm golden dust
+                    ctx.fillStyle = `rgba(255, 200, 120, ${Math.max(0, this.alpha * 0.8)})`;
+                    ctx.shadowBlur = 5;
+                    ctx.shadowColor = '#fb923c';
+                } else {
+                    // Soft sunny pollen particles
+                    ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0, this.alpha * 0.6)})`;
+                }
+                
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class FallingPetal {
+            constructor(x, y) {
+                this.x = x || Math.random() * canvas.width;
+                this.y = y || -20;
+                this.size = Math.random() * 12 + 10;
+                this.speedY = Math.random() * 1.2 + 0.8;
+                this.speedX = Math.random() * 1 - 0.5;
+                this.rotation = Math.random() * 360;
+                this.rotSpeed = (Math.random() - 0.5) * 2;
+                this.oscillation = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                this.oscillation += 0.03;
+                const windBonus = windLevel === 2 ? 3 : windLevel === 1 ? 1 : 0.2;
+                
+                this.x += Math.sin(this.oscillation) * 1.5 + windBonus;
+                this.y += this.speedY;
+                this.rotation += this.rotSpeed;
+
+                if (this.y > canvas.height + 20) {
+                    this.y = -20;
+                    this.x = Math.random() * canvas.width;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate((this.rotation * Math.PI) / 180);
+                
+                // Draw petal SVG shape on canvas
+                ctx.beginPath();
+                ctx.moveTo(0, -this.size);
+                ctx.quadraticCurveTo(this.size * 0.6, -this.size * 0.2, this.size * 0.3, this.size * 0.8);
+                ctx.quadraticCurveTo(0, this.size, -this.size * 0.3, this.size * 0.8);
+                ctx.quadraticCurveTo(-this.size * 0.6, -this.size * 0.2, 0, -this.size);
+
+                // Yellow petal gradient
+                const grad = ctx.createLinearGradient(0, -this.size, 0, this.size);
+                grad.addColorStop(0, '#FFF9A6');
+                grad.addColorStop(0.6, '#FFD000');
+                grad.addColorStop(1, '#FF9100');
+
+                ctx.fillStyle = grad;
+                ctx.globalAlpha = 0.85;
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Initialize Particles
+        function initParticles() {
+            particles = [];
+            petals = [];
+
+            // Ambient floating particles
+            for (let i = 0; i < 45; i++) {
+                particles.push(new AmbientParticle());
+            }
+
+            // Gently falling yellow petals
+            for (let i = 0; i < 12; i++) {
+                petals.push(new FallingPetal());
+            }
+        }
+
+        // Main Animation Loop
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Update & Render Ambient Particles
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            // Update & Render Petals
+            petals.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        // --- Interactive Functions ---
+
+        // Theme Switcher Function
+        function setTheme(theme) {
+            currentTheme = theme;
+            const body = document.body;
+
+            // Reset theme classes
+            body.className = 'transition-colors duration-1000 select-none overflow-hidden ';
+
+            // Reset active button styling
+            ['btnDay', 'btnSunset', 'btnNight'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.className = "p-2 rounded-full w-9 h-9 flex items-center justify-center transition-all hover:bg-white/20 text-amber-900 dark:text-amber-100";
+            });
+
+            if (theme === 'day') {
+                body.classList.add('theme-day');
+                document.getElementById('btnDay').className = "p-2 rounded-full w-9 h-9 flex items-center justify-center transition-all bg-amber-400 text-amber-950 shadow-md";
+            } else if (theme === 'sunset') {
+                body.classList.add('theme-sunset');
+                document.getElementById('btnSunset').className = "p-2 rounded-full w-9 h-9 flex items-center justify-center transition-all bg-orange-500 text-white shadow-md";
+            } else if (theme === 'night') {
+                body.classList.add('theme-night');
+                document.getElementById('btnNight').className = "p-2 rounded-full w-9 h-9 flex items-center justify-center transition-all bg-indigo-600 text-white shadow-md";
+            }
+        }
+
+        // Toggle Bloom (Open / Close Lily Flowers)
+        function toggleBloom() {
+            isBloomed = !isBloomed;
+            const bloomText = document.getElementById('bloomText');
+            const heads = [document.getElementById('head1'), document.getElementById('head2'), document.getElementById('head3')];
+
+            heads.forEach((head, index) => {
+                const scaleBase = index === 1 ? 1.15 : index === 2 ? 0.95 : 1.0;
+                if (isBloomed) {
+                    head.style.transform = `scale(${scaleBase}) rotate(0deg)`;
+                    head.style.opacity = "1";
+                } else {
+                    head.style.transform = `scale(0.35) translateY(90px) rotate(${index % 2 === 0 ? -12 : 12}deg)`;
+                    head.style.opacity = "0.85";
+                }
+            });
+
+            bloomText.innerText = isBloomed ? "Cerrar Lirios" : "Florecer";
+        }
+
+        // Toggle Wind Breeze
+        function toggleWind() {
+            windLevel = (windLevel + 1) % 3;
+            const lilies = [document.getElementById('lily1'), document.getElementById('lily2'), document.getElementById('lily3')];
+            const windText = document.getElementById('windText');
+
+            lilies.forEach(lily => {
+                lily.classList.remove('sway-light', 'sway-wind');
+                if (windLevel === 1) {
+                    lily.classList.add('sway-light');
+                } else if (windLevel === 2) {
+                    lily.classList.add('sway-wind');
+                }
+            });
+
+            if (windLevel === 0) {
+                windText.innerText = "Brisa: Calma";
+            } else if (windLevel === 1) {
+                windText.innerText = "Brisa: Suave";
+            } else {
+                windText.innerText = "Brisa: Fuerte";
+            }
+        }
+
+        // Toggle Magical Glow
+        function toggleGlow() {
+            isGlowing = !isGlowing;
+            const heads = [document.getElementById('head1'), document.getElementById('head2'), document.getElementById('head3')];
+            const glowText = document.getElementById('glowText');
+
+            heads.forEach(head => {
+                if (isGlowing) {
+                    head.classList.add('lily-glow');
+                } else {
+                    head.classList.remove('lily-glow');
+                }
+            });
+
+            glowText.innerText = isGlowing ? "Brillo: On" : "Brillo";
+        }
+
+        // Individual Lily Click Interaction
+        function interactLily(id, event) {
+            const lily = document.getElementById(`lily${id}`);
+            
+            // Temporary tilt effect
+            lily.style.transform = `scale(1.08) rotate(${id === 1 ? -8 : id === 3 ? 8 : 0}deg)`;
+            setTimeout(() => {
+                lily.style.transform = 'scale(1) rotate(0deg)';
+            }, 600);
+
+            // Spawn floating sparkle burst at click location
+            createSparkleBurst(event.clientX, event.clientY);
+        }
+
+        // Create Sparkle Effect on Click
+        function createSparkleBurst(x, y) {
+            for (let i = 0; i < 15; i++) {
+                const p = new AmbientParticle();
+                p.x = x + (Math.random() - 0.5) * 40;
+                p.y = y + (Math.random() - 0.5) * 40;
+                p.speedY = (Math.random() - 0.5) * 4;
+                p.speedX = (Math.random() - 0.5) * 4;
+                p.size = Math.random() * 4 + 2;
+                particles.push(p);
+            }
+
+            // Also spawn an extra falling petal
+            petals.push(new FallingPetal(x, y));
+        }
+
+        // Start initialization after window load
+        window.onload = function () {
+            initParticles();
+            animate();
+        };
+    </script>
+</body>
+</html>
